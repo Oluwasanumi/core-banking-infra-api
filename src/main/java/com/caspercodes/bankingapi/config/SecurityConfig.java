@@ -18,10 +18,23 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .authorizeHttpRequests(auth -> auth.requestMatchers(PUBLIC_URLS_FOR_NOW)
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated()
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
+
+    private static final String [] PUBLIC_URLS_FOR_NOW = {
+            "/",
+            "/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/api/test/**",
+            "/auth/test/**"
+    };
 
     @Bean
     public PasswordEncoder passwordEncoder() {
