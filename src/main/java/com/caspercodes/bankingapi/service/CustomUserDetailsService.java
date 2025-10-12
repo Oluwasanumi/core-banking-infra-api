@@ -1,6 +1,7 @@
-package com.caspercodes.bankingapi.security;
+package com.caspercodes.bankingapi.service;
 
 import com.caspercodes.bankingapi.repository.UserRepository;
+import com.caspercodes.bankingapi.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
