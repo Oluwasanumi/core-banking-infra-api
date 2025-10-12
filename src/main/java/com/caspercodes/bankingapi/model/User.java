@@ -8,7 +8,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+        @Index(name = "idx_user_email", columnList = "email")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,7 +38,15 @@ public class User {
     private String phoneNumber;
 
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
+
+    @Column(name = "failed_login_attempts")
+    @Builder.Default //For fields with default values
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

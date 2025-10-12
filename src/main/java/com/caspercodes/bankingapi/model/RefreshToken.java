@@ -24,7 +24,7 @@ public class RefreshToken {
     private String token;
 
     //Many to One column because many users can have more than one refresh token for multiple devices
-    @JsonIgnore
+    @JsonIgnore //TODO remove if issues arise, I added JSON IGNORE to properly test the API with Postman
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -37,5 +37,6 @@ public class RefreshToken {
     private LocalDateTime createdAt;
 
     @Column(name = "revoked")
+    @Builder.Default
     private Boolean revoked = false;
 }
