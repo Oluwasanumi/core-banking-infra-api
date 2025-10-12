@@ -32,7 +32,7 @@ public class AuthTestController {
         User savedUser = userRepository.save(user);
 
         RefreshToken token = RefreshToken.builder()
-                .token("Sample token" + savedUser.getId())
+                .token("Sample token " + savedUser.getId())
                 .user(savedUser)
                 .expiresAt(LocalDateTime.now().plusDays(7))
                 .build();
