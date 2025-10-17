@@ -71,10 +71,10 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(401)
                 .error("Authentication Failed")
-                .message(ex.getMessage())
+                .message("Invalid email or password")
                 .build();
 
-        log.warn("User not found during authentication");
+        log.warn("Invalid credentials: {}", ex.getMessage());
         return  ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
