@@ -135,6 +135,18 @@ public class OtpService {
     }
 
 
+    public void resendOtp(String email) {
+        log.info("Resending OTP for email: {}", email);
+
+        String key = OTP_PREFIX + email;
+        OtpData existingOtp = (OtpData) redisTemplate.opsForValue().get(key);
+
+        OtpData.OtpType type = (existingOtp != null) ? existingOtp.getType() : OtpData.OtpType.LOGIN;
+
+        generateAndSendOtp(email, type);
+    }
+
+
     private boolean isUserLocked(String email) {
         String lockKey = LOCK_PREFIX + email;
         return redisTemplate.hasKey(lockKey);
@@ -152,17 +164,5 @@ public class OtpService {
         int bound = (int) Math.pow(10, otpLength);
         int otp = random.nextInt(bound);
         return String.format("%0" + otpLength + "d", otp);
-    }
-
-
-    private void resendOtp(String email) {
-        log.info("Resending OTP for email: {}", email);
-
-        String key = OTP_PREFIX + email;
-        OtpData existingOtp = (OtpData) redisTemplate.opsForValue().get(key);
-
-        OtpData.OtpType type = (existingOtp != null) ? existingOtp.getType() : OtpData.OtpType.LOGIN;
-
-        generateAndSendOtp(email, type);
     }
 }

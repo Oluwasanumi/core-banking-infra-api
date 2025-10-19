@@ -1,10 +1,8 @@
 package com.caspercodes.bankingapi.controller;
 
-import com.caspercodes.bankingapi.dto.AuthResponseDTO;
-import com.caspercodes.bankingapi.dto.LoginRequestDTO;
-import com.caspercodes.bankingapi.dto.RefreshTokenRequestDTO;
-import com.caspercodes.bankingapi.dto.RegisterRequestDTO;
+import com.caspercodes.bankingapi.dto.*;
 import com.caspercodes.bankingapi.service.AuthService;
+import com.caspercodes.bankingapi.service.OtpService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -12,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth/")
@@ -25,21 +20,42 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final OtpService otpService;
 
     @PostMapping("register")
     @Operation(summary = "Register a new user", description = "Creates a new user account with email and password.")
-    public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
+    public ResponseEntity<OtpResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
         log.info("Register request for email: {}", request.getEmail());
-        AuthResponseDTO response = authService.register(request);
+        OtpResponseDTO response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("login")
     @Operation(summary = "User login", description = "Authenticates a user and returns access and refresh tokens.")
-    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
+    public ResponseEntity<OtpResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
         log.info("Login request for email: {}", request.getEmail());
-        AuthResponseDTO response = authService.login(request);
+        OtpResponseDTO response = authService.login(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("verify-otp")
+    @Operation(summary = "Verify OTP", description = "Verifies the OTP sent to the user")
+    public ResponseEntity<AuthResponseDTO> verifyOtp(@Valid @RequestBody VerifyOtpRequestDTO request) {
+        log.info("OTP verification request for email: {}", request.getEmail());
+        AuthResponseDTO response = authService.verifyOtpAndLogin(request.getEmail(), request.getOtp());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("resend-otp")
+    @Operation(summary = "Resend OTP", description = "Requests a new OTP code")
+    public ResponseEntity<OtpResponseDTO> resendOtp(@RequestParam String email) {
+        log.info("Resend OTP request for email: {}", email);
+        otpService.resendOtp(email);
+        return ResponseEntity.ok(OtpResponseDTO.builder()
+                .message("New verification code sent to your email")
+                .email(email)
+                .expiresInMinutes(5)
+                .build());
     }
 
     @PostMapping("refresh-token")

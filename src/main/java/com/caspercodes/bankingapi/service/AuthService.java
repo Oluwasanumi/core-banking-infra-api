@@ -2,10 +2,12 @@ package com.caspercodes.bankingapi.service;
 
 import com.caspercodes.bankingapi.dto.AuthResponseDTO;
 import com.caspercodes.bankingapi.dto.LoginRequestDTO;
+import com.caspercodes.bankingapi.dto.OtpResponseDTO;
 import com.caspercodes.bankingapi.dto.RegisterRequestDTO;
 import com.caspercodes.bankingapi.exception.EmailAlreadyExistsException;
 import com.caspercodes.bankingapi.exception.InvalidTokenException;
 import com.caspercodes.bankingapi.exception.TokenExpiredException;
+import com.caspercodes.bankingapi.model.OtpData;
 import com.caspercodes.bankingapi.model.RefreshToken;
 import com.caspercodes.bankingapi.model.User;
 import com.caspercodes.bankingapi.repository.RefreshTokenRepository;
@@ -32,10 +34,11 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtil jwtUtil;
-    private AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
+    private final OtpService otpService;
 
     @Transactional
-    public AuthResponseDTO register(RegisterRequestDTO request) {
+    public OtpResponseDTO register(RegisterRequestDTO request) {
         log.info("Attempting to register user with email: {}", request.getEmail());
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -49,25 +52,25 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phoneNumber(request.getPhoneNumber())
+                .isVerified(false)
                 .build();
 
         User savedUser = userRepository.save(user);
         log.info("User with ID: {} registered successfully", savedUser.getId());
 
-        // Generate tokens
-        UserDetails userDetails = new CustomUserDetails(savedUser);
-        String accessToken = jwtUtil.generateToken(userDetails);
-        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+        otpService.generateAndSendOtp(savedUser.getEmail(), OtpData.OtpType.REGISTRATION);
 
-        saveRefreshToken(savedUser, refreshToken);
-        return buildAuthResponse(savedUser, accessToken, refreshToken);
+        return OtpResponseDTO.builder()
+                .message("Registration successful! Please check your email for verification code.")
+                .email(maskEmail(savedUser.getEmail()))
+                .expiresInMinutes(5)
+                .build();
     }
 
     @Transactional
-    public AuthResponseDTO login(LoginRequestDTO request) {
+    public OtpResponseDTO login(LoginRequestDTO request) {
         log.info("Login attempt for email: {}", request.getEmail());
 
-        // Authenticate user
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -75,20 +78,43 @@ public class AuthService {
                 )
         );
 
-        // Extract user from authentication
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        User user = userDetails.getUser();
+        log.info("User with email: {} authenticated successfully", request.getEmail());
+
+        otpService.generateAndSendOtp(request.getEmail(), OtpData.OtpType.LOGIN);
+
+        return OtpResponseDTO.builder()
+                .message("Login successful! Please check your email for verification code.")
+                .email(maskEmail(request.getEmail()))
+                .expiresInMinutes(5)
+                .build();
+    }
+
+    @Transactional
+    public AuthResponseDTO verifyOtpAndLogin(String email, String otp) {
+        log.info("OTP verification attempt for email: {}", email);
+
+        otpService.verifyOtp(email, otp);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.getIsVerified()) {
+            user.setIsVerified(true);
+            user.setEmailVerifiedAt(LocalDateTime.now());
+            log.info("User verified: {}", email);
+        }
 
         user.setLastLoginAt(LocalDateTime.now());
         user.setFailedLoginAttempts(0);
         userRepository.save(user);
 
-        log.info("User with email: {} logged in successfully", user.getEmail());
-
+        UserDetails userDetails = new CustomUserDetails(user);
         String accessToken = jwtUtil.generateToken(userDetails);
         String refreshToken = jwtUtil.generateRefreshToken(userDetails);
 
         saveRefreshToken(user, refreshToken);
+
+        log.info("Tokens generated for verified user: {}", email);
         return buildAuthResponse(user, accessToken, refreshToken);
     }
 
@@ -163,5 +189,18 @@ public class AuthService {
                 .user(userInfo)
                 .build();
 
+    }
+
+    private String maskEmail(String email) {
+        String[] parts = email.split("@");
+        if (parts.length == 2) {
+            String username = parts[0];
+            String domain = parts[1];
+            if (username.length() > 2) {
+                String maskedUsername = username.charAt(0) + "***" + username.charAt(username.length() - 1);
+                return maskedUsername + "@" + domain;
+            }
+        }
+        return email;
     }
 }

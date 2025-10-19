@@ -41,6 +41,13 @@ public class User {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(name = "is_verified", nullable = false)
+    @Builder.Default
+    private Boolean isVerified = false;
+
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
     @Column(name = "failed_login_attempts")
     @Builder.Default //For fields with default values
     private Integer failedLoginAttempts = 0;
