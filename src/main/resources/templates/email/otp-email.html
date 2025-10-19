@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{email/email-base :: layout(content=~{::content}, subject=${subject})}">
+<body>
+<div th:fragment="content">
+    <h2 th:text="${greeting}">Hello,</h2>
+
+    <p th:text="${message}">
+        We received a request to verify your email address.
+        Please use the verification code below to complete the process.
+    </p>
+
+    <div class="otp-box">
+        <div class="otp-label">Your Verification Code</div>
+        <div class="otp-code" th:text="${otp}">123456</div>
+        <p style="color: #718096; font-size: 14px; margin-top: 15px;">
+            Valid for <span th:text="${expiryMinutes}">5</span> minutes
+        </p>
+    </div>
+
+    <div class="info-box">
+        <p>
+            <strong>⚠️ Security Notice:</strong><br/>
+            Never share this code with anyone. Our team will never ask for your verification code.
+            If you didn't request this code, please ignore this email or contact support immediately.
+        </p>
+    </div>
+
+    <div class="success-box">
+        <p>
+            <strong>💡 Pro Tip:</strong><br/>
+            For your security, this code will expire in <span th:text="${expiryMinutes}">5</span> minutes.
+            Make sure to complete the verification process promptly.
+        </p>
+    </div>
+
+    <p style="margin-top: 30px; color: #718096; font-size: 14px;">
+        If you're having trouble, you can request a new code or contact our support team.
+    </p>
+</div>
+</body>
+</html>
