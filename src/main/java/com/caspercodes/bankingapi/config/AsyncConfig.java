@@ -1,11 +1,13 @@
 package com.caspercodes.bankingapi.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
 @Configuration
@@ -28,5 +30,20 @@ public class AsyncConfig implements AsyncConfigurer {
                 executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity());
 
         return executor;
+    }
+
+    // Handle exceptions in async methods
+    @Override
+    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+        return new CustomAsyncExceptionHandler();
+    }
+
+    // Custom exception handler for async methods
+    private static class CustomAsyncExceptionHandler implements AsyncUncaughtExceptionHandler {
+        @Override
+        public void handleUncaughtException(Throwable throwable, Method method, Object... params) {
+            log.error("Async method '{}' threw an exception: {}", method.getName(), throwable.getMessage(), throwable);
+
+        }
     }
 }
