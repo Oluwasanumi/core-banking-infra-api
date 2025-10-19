@@ -16,24 +16,19 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Slf4j
 public class OtpService {
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final EmailService emailService;
-
-    @Value("${otp.expiration:300}")
-    private int otpExpiration;
-
-    @Value("${otp.max-attempts:3}")
-    private int maxAttempts;
-
-    @Value("${otp.lock-duration:900}")
-    private int lockDuration;
-
-    @Value("${otp.length:6}")
-    private int otpLength;
-
     private static final String OTP_PREFIX = "otp:";
     private static final String LOCK_PREFIX = "otp-lock:";
     private static final SecureRandom random = new SecureRandom();
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final EmailService emailService;
+    @Value("${otp.expiration:300}")
+    private int otpExpiration;
+    @Value("${otp.max-attempts:3}")
+    private int maxAttempts;
+    @Value("${otp.lock-duration:900}")
+    private int lockDuration;
+    @Value("${otp.length:6}")
+    private int otpLength;
 
     public void generateAndSendOtp(String email, OtpData.OtpType type) {
         log.info("Generating OTP for email: {} and type: {}", email, type);
@@ -56,6 +51,8 @@ public class OtpService {
         String key = OTP_PREFIX + email;
         redisTemplate.opsForValue().set(key, otpData, otpExpiration, TimeUnit.SECONDS);
         log.info("OTP generated and stored in Redis for email: {}", email);
+
+        emailService.sendOtpEmail(email, code, otpExpiration / 60);
     }
 
     // To check if the user is locked
