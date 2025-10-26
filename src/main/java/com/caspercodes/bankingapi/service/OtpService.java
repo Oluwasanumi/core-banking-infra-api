@@ -4,6 +4,7 @@ import com.caspercodes.bankingapi.exception.InvalidOtpException;
 import com.caspercodes.bankingapi.exception.OtpExpiredException;
 import com.caspercodes.bankingapi.exception.TooManyAttemptsException;
 import com.caspercodes.bankingapi.model.OtpData;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,8 @@ public class OtpService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     private final EmailService emailService;
+
+    private final ObjectMapper objectMapper;
 
     @Value("${otp.expiration:300}")
     private int otpExpiration;
@@ -87,13 +90,16 @@ public class OtpService {
 
 
         String key = OTP_PREFIX + email;
-        OtpData otpData = (OtpData) redisTemplate.opsForValue().get(key);
+        Object rawOtpData = redisTemplate.opsForValue().get(key);
 
 
-        if (otpData == null) {
+        if (rawOtpData == null) {
             log.warn("OTP not found or expired for: {}", email);
             throw new OtpExpiredException("OTP has expired. Please request a new one.");
         }
+
+        // Convert to OtpData (handles both direct OtpData and LinkedHashMap from Redis)
+        OtpData otpData = convertToOtpData(rawOtpData);
 
 
         if (otpData.getExpiredAt().isBefore(LocalDateTime.now())) {
@@ -139,9 +145,17 @@ public class OtpService {
         log.info("Resending OTP for email: {}", email);
 
         String key = OTP_PREFIX + email;
-        OtpData existingOtp = (OtpData) redisTemplate.opsForValue().get(key);
+        Object rawOtpData = redisTemplate.opsForValue().get(key);
 
-        OtpData.OtpType type = (existingOtp != null) ? existingOtp.getType() : OtpData.OtpType.LOGIN;
+        OtpData.OtpType type = OtpData.OtpType.LOGIN;
+        if (rawOtpData != null) {
+            try {
+                OtpData existingOtp = convertToOtpData(rawOtpData);
+                type = existingOtp.getType();
+            } catch (Exception e) {
+                log.warn("Could not convert existing OTP data, using default type LOGIN", e);
+            }
+        }
 
         generateAndSendOtp(email, type);
     }
@@ -164,5 +178,23 @@ public class OtpService {
         int bound = (int) Math.pow(10, otpLength);
         int otp = random.nextInt(bound);
         return String.format("%0" + otpLength + "d", otp);
+    }
+
+    /*
+      Converts Redis retrieved object to OtpData
+      Handles both direct OtpData objects and LinkedHashMap from deserialization
+     */
+    private OtpData convertToOtpData(Object rawData) {
+        if (rawData instanceof OtpData) {
+            return (OtpData) rawData;
+        }
+
+        // Convert LinkedHashMap to OtpData using ObjectMapper
+        try {
+            return objectMapper.convertValue(rawData, OtpData.class);
+        } catch (Exception e) {
+            log.error("Failed to convert Redis data to OtpData", e);
+            throw new RuntimeException("Failed to retrieve OTP data from cache", e);
+        }
     }
 }
